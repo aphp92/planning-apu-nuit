@@ -1127,7 +1127,12 @@ function applyModal(){
   if(modalCb){
     const{ag,d,y,mo}=modalCb;
     const cur = editCtx==='trame'?gt(y,mo,ag,d):gc(y,mo,ag,d);
-    if(cur!==modalSel) pushUndo();   // point de retour avant la modif
+    if(cur!==modalSel){
+      pushUndo();   // point de retour avant la modif
+      const ctx=editCtx==='trame'?'Trame':'Planning';
+      const act=(!cur&&modalSel)?('ajout '+modalSel):((cur&&!modalSel)?('suppression '+cur):((cur||'(vide)')+' → '+(modalSel||'(vide)')));
+      logEvent('edit',ctx+' · '+ag+' · '+d+' '+MONTHS[mo]+' '+y+' : '+act);
+    }
     if(editCtx==='trame')st(y,mo,ag,d,modalSel);
     else sc(y,mo,ag,d,modalSel);
     if(editCtx==='trame')renderTrame();
@@ -1574,16 +1579,16 @@ function doLogout(){ if(confirm('Se déconnecter ?')) fbAuth.signOut(); }
 function togglePw(){const i=document.getElementById('loginPw');if(i)i.type=(i.type==='password'?'text':'password');}
 
 // ============ ADMINISTRATION ============
-const ROLE_LABELS={read:'Lecture seule',write:'Lecture / écriture',admin:'Administrateur'};
+const ROLE_LABELS={read:'Lecture seule',write:'Lecture / écriture',admin:'Administrateur',blocked:'🚫 Bloqué (accès retiré)'};
 function openAdmin(){ if(currentRole!=='admin')return; document.getElementById('adminModal').style.display='flex'; renderAdminUsers(); renderAdminLogs(); }
 function closeAdmin(){ document.getElementById('adminModal').style.display='none'; }
 async function renderAdminUsers(){
   const el=document.getElementById('adminUsers'); el.textContent='Chargement…';
   try{
     const snap=await fbDB.collection('users').get();
-    let h='<table style="width:100%;border-collapse:collapse"><tr style="text-align:left;color:#667"><th style="padding:4px 6px">E-mail</th><th style="padding:4px 6px">Droits</th></tr>';
+    let h='<table style="width:100%;border-collapse:collapse"><tr style="text-align:left;color:#667"><th style="padding:4px 6px">E-mail</th><th style="padding:4px 6px">Droits</th><th style="padding:4px 6px">Action</th></tr>';
     snap.forEach(d=>{const u=d.data(),uid=d.id,r=u.role||'read';const me=(currentUser&&uid===currentUser.uid);
-      h+='<tr style="border-top:1px solid #eee"><td style="padding:6px">'+(u.email||uid)+(me?' <b>(moi)</b>':'')+'</td><td style="padding:6px"><select '+(me?'disabled title="Tu ne peux pas changer ton propre rôle"':'onchange="setUserRole(\''+uid+'\',this.value)"')+'>'+['read','write','admin'].map(x=>'<option value="'+x+'"'+(x===r?' selected':'')+'>'+ROLE_LABELS[x]+'</option>').join('')+'</select></td></tr>';
+      h+='<tr style="border-top:1px solid #eee"><td style="padding:6px">'+(u.email||uid)+(me?' <b>(moi)</b>':'')+'</td><td style="padding:6px"><select '+(me?'disabled title="Tu ne peux pas changer ton propre rôle"':'onchange="setUserRole(\''+uid+'\',this.value)"')+'>'+['read','write','admin','blocked'].map(x=>'<option value="'+x+'"'+(x===r?' selected':'')+'>'+ROLE_LABELS[x]+'</option>').join('')+'</select></td><td style="padding:6px">'+(me?'':'<button class="nb" style="background:#8B0000;font-size:11px;padding:3px 9px" onclick="blockUser(\''+uid+'\',\''+(u.email||'')+'\')">Retirer l\'accès</button>')+'</td></tr>';
     });
     el.innerHTML=h+'</table>';
   }catch(e){ el.textContent='Erreur: '+e.message; }
@@ -1591,6 +1596,11 @@ async function renderAdminUsers(){
 async function setUserRole(uid,role){
   try{ await fbDB.collection('users').doc(uid).update({role}); logEvent('role','Droits de '+uid+' → '+role); setStatus('✅ Droits mis à jour','sync-ok'); }
   catch(e){ alert('Impossible de changer les droits : '+e.message); renderAdminUsers(); }
+}
+async function blockUser(uid,email){
+  if(!confirm("Retirer l'accès de "+(email||uid)+" ?\n\nLa personne sera déconnectée et ne pourra plus se connecter.\n(Pour supprimer complètement le compte e-mail : console Firebase → Authentication.)")) return;
+  try{ await fbDB.collection('users').doc(uid).update({role:'blocked'}); logEvent('role','Accès retiré : '+(email||uid)); setStatus('✅ Accès retiré','sync-ok'); renderAdminUsers(); }
+  catch(e){ alert('Impossible : '+e.message); }
 }
 async function renderAdminLogs(){
   const el=document.getElementById('adminLogs'); el.textContent='Chargement…';
@@ -1649,6 +1659,7 @@ fbAuth.onAuthStateChanged(async (user)=>{
   if(user){
     currentUser=user;
     await loadRole(user);
+    if(currentRole==='blocked'){ document.getElementById('loginGate').classList.remove('hidden'); alert("Votre accès a été retiré par un administrateur."); fbAuth.signOut(); return; }
     applyRoleUI();
     logEvent('login','Connexion');
     try{ await doLoad(); }catch(e){}
