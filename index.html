@@ -1604,6 +1604,8 @@ async function blockUser(uid,email){
 }
 async function renderAdminLogs(){
   const el=document.getElementById('adminLogs'); el.textContent='Chargement…';
+  // Purge auto des logs de +90 jours (gratuit, sans TTL/facturation)
+  try{ const exp=await fbDB.collection('logs').where('expireAt','<',new Date()).limit(400).get(); if(!exp.empty){ const b=fbDB.batch(); exp.forEach(x=>b.delete(x.ref)); await b.commit(); } }catch(e){}
   try{
     const snap=await fbDB.collection('logs').orderBy('at','desc').limit(120).get();
     if(snap.empty){ el.textContent='Aucun événement.'; return; }
