@@ -1599,18 +1599,17 @@ const BUILTIN_CODES={'N':1,'CA':1,'RH':1,'*':1,'*R':1,'TP':1,'HP':1,'RR':1,'FO':
 async function renderCustomCodesList(){
   const el=document.getElementById('adminCodes'); if(!el)return; el.textContent='…';
   try{ const snap=await DATA_DOC.get(); const cc=(snap.exists&&snap.data().customCodes)||{}; const keys=Object.keys(cc);
-    el.innerHTML=keys.length?keys.map(k=>'<span style="display:inline-flex;align-items:center;gap:6px;margin:3px 6px 3px 0;padding:3px 10px;border-radius:6px;border:1px solid #ddd;background:'+cc[k].bg+';color:'+(cc[k].fg||'#000')+'">'+k+' — '+cc[k].label+' <button onclick="removeCustomCode(\''+k+'\')" style="border:none;background:transparent;cursor:pointer;color:inherit;font-weight:bold" title="Supprimer">✕</button></span>').join(''):'<span style="color:#888">Aucun bouton personnalisé pour l\'instant.</span>';
+    el.innerHTML=keys.length?keys.map(k=>'<span style="display:inline-flex;align-items:center;gap:6px;margin:3px 6px 3px 0;padding:3px 10px;border-radius:6px;border:1px solid #ddd;background:'+cc[k].bg+';color:'+(cc[k].fg||'#000')+'">'+k+' — '+cc[k].label+' <button onclick="editCustomCode(\''+k+'\')" style="border:none;background:transparent;cursor:pointer;color:inherit" title="Modifier">✎</button><button onclick="removeCustomCode(\''+k+'\')" style="border:none;background:transparent;cursor:pointer;color:inherit;font-weight:bold" title="Supprimer">✕</button></span>').join(''):'<span style="color:#888">Aucun bouton personnalisé pour l\'instant.</span>';
   }catch(e){ el.textContent='Erreur: '+e.message; }
 }
 async function addCustomCode(){
   const key=(document.getElementById('ncCode').value||'').trim();
-  const label=(document.getElementById('ncLabel').value||'').trim();
+  const label=(document.getElementById('ncLabel').value||'').trim()||key;
   const bg=document.getElementById('ncBg').value||'#eeeeee';
   const fg=document.getElementById('ncFg').value||'#000';
   const msg=document.getElementById('ncMsg'); if(msg)msg.textContent='';
   if(!key){ alert('Entre un code court (ex. VM).'); return; }
-  if(!label){ alert('Entre un libellé (ex. VM — Visite médicale).'); return; }
-  if(BUILTIN_CODES[key]){ alert('Le code « '+key+' » existe déjà. Choisis-en un autre.'); return; }
+  if(BUILTIN_CODES[key]){ alert('Le code « '+key+' » est un bouton d\'origine. Choisis un autre code.'); return; }
   try{
     const snap=await DATA_DOC.get(); const cc=(snap.exists&&snap.data().customCodes)||{};
     cc[key]={label,bg,fg};
@@ -1632,6 +1631,15 @@ async function removeCustomCode(key){
     logEvent('code','Bouton supprimé : '+key);
     render(); if(trameUnlocked)renderTrame(); renderCustomCodesList();
   }catch(e){ alert('Impossible : '+e.message); }
+}
+function editCustomCode(key){
+  const info=CODES[key]; if(!info){ alert('Bouton introuvable.'); return; }
+  document.getElementById('ncCode').value=key;
+  document.getElementById('ncLabel').value=(info.label===key?'':(info.label||''));
+  const bgI=document.getElementById('ncBg'); if(/^#[0-9a-fA-F]{6}$/.test(info.bg||'')) bgI.value=info.bg;
+  document.getElementById('ncFg').value=((info.fg==='#fff'||info.fg==='#ffffff')?'#fff':'#000');
+  const msg=document.getElementById('ncMsg'); if(msg)msg.textContent='✎ Modifie les champs puis clique « ➕ Ajouter » pour mettre à jour « '+key+' ».';
+  try{document.getElementById('ncLabel').focus();}catch(e){}
 }
 function closeAdmin(){ document.getElementById('adminModal').style.display='none'; }
 async function renderAdminUsers(){
