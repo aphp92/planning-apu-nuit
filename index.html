@@ -1588,7 +1588,7 @@ async function renderAdminUsers(){
     const snap=await fbDB.collection('users').get();
     let h='<table style="width:100%;border-collapse:collapse"><tr style="text-align:left;color:#667"><th style="padding:4px 6px">E-mail</th><th style="padding:4px 6px">Droits</th><th style="padding:4px 6px">Action</th></tr>';
     snap.forEach(d=>{const u=d.data(),uid=d.id,r=u.role||'read';const me=(currentUser&&uid===currentUser.uid);
-      h+='<tr style="border-top:1px solid #eee"><td style="padding:6px">'+(u.email||uid)+(me?' <b>(moi)</b>':'')+'</td><td style="padding:6px"><select '+(me?'disabled title="Tu ne peux pas changer ton propre rôle"':'onchange="setUserRole(\''+uid+'\',this.value)"')+'>'+['read','write','admin','blocked'].map(x=>'<option value="'+x+'"'+(x===r?' selected':'')+'>'+ROLE_LABELS[x]+'</option>').join('')+'</select></td><td style="padding:6px">'+(me?'':'<button class="nb" style="background:#8B0000;font-size:11px;padding:3px 9px" onclick="blockUser(\''+uid+'\',\''+(u.email||'')+'\')">Retirer l\'accès</button>')+'</td></tr>';
+      h+='<tr style="border-top:1px solid #eee"><td style="padding:6px">'+(u.email||uid)+(me?' <b>(moi)</b>':'')+'</td><td style="padding:6px"><select '+(me?'disabled title="Tu ne peux pas changer ton propre rôle"':'onchange="setUserRole(\''+uid+'\',this.value)"')+'>'+['read','write','admin','blocked'].map(x=>'<option value="'+x+'"'+(x===r?' selected':'')+'>'+ROLE_LABELS[x]+'</option>').join('')+'</select></td><td style="padding:6px">'+(me?'':'<button class="nb" style="background:#8B0000;font-size:11px;padding:3px 9px" onclick="blockUser(\''+uid+'\',\''+(u.email||'')+'\')">🗑 Supprimer</button>')+'</td></tr>';
     });
     el.innerHTML=h+'</table>';
   }catch(e){ el.textContent='Erreur: '+e.message; }
@@ -1598,8 +1598,8 @@ async function setUserRole(uid,role){
   catch(e){ alert('Impossible de changer les droits : '+e.message); renderAdminUsers(); }
 }
 async function blockUser(uid,email){
-  if(!confirm("Retirer l'accès de "+(email||uid)+" ?\n\nLa personne sera déconnectée et ne pourra plus se connecter.\n(Pour supprimer complètement le compte e-mail : console Firebase → Authentication.)")) return;
-  try{ await fbDB.collection('users').doc(uid).update({role:'blocked'}); logEvent('role','Accès retiré : '+(email||uid)); setStatus('✅ Accès retiré','sync-ok'); renderAdminUsers(); }
+  if(!confirm("Supprimer le compte "+(email||uid)+" ?\n\n1) Sa fiche (droits) sera supprimée ici.\n2) IMPORTANT : supprime AUSSI son identifiant dans Firebase → Authentication → Users, sinon la personne pourrait se reconnecter.\n\n(Pour un blocage temporaire sans supprimer : choisis « 🚫 Bloqué » dans le menu des droits.)")) return;
+  try{ await fbDB.collection('users').doc(uid).delete(); logEvent('role','Compte supprimé : '+(email||uid)); setStatus('✅ Compte supprimé','sync-ok'); renderAdminUsers(); alert("Fiche supprimée ✅\n\nPour l'effacer DÉFINITIVEMENT : Firebase → Authentication → Users → supprime "+(email||'ce compte')+"."); }
   catch(e){ alert('Impossible : '+e.message); }
 }
 async function renderAdminLogs(){
