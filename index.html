@@ -543,8 +543,8 @@ body.readonly [onclick*="undoLast"],body.readonly [onclick*="openWeModal"]{displ
     <h3 style="font-size:14px;margin:8px 0 6px;color:#0f2744">Utilisateurs &amp; droits</h3>
     <div style="font-size:11.5px;color:#777;margin-bottom:6px">Les comptes se créent eux-mêmes (inscription). Ici tu attribues les droits : lecture seule / lecture-écriture / administrateur.</div>
     <div id="adminUsers" style="font-size:13px">Chargement…</div>
-    <h3 style="font-size:14px;margin:18px 0 6px;color:#0f2744">Boutons (codes) personnalisés</h3>
-    <div style="font-size:11.5px;color:#777;margin-bottom:6px">Crée tes propres boutons : ils apparaîtront dans le sélecteur et dans les cellules, pour tout le monde.</div>
+    <h3 style="font-size:14px;margin:18px 0 6px;color:#0f2744">Boutons (codes) — ajouter / modifier / supprimer</h3>
+    <div style="font-size:11.5px;color:#777;margin-bottom:6px">✎ = modifier un bouton (même ceux d'origine) · ✕ = supprimer. Pour en créer un : remplis le code (+ couleurs) et « ➕ Ajouter ». Tout est partagé avec l'équipe.</div>
     <div id="adminCodes" style="font-size:13px;margin-bottom:8px"></div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px">
       <input id="ncCode" placeholder="Code (ex. VM)" maxlength="4" style="width:95px;padding:6px 8px;border:1px solid #ccd3da;border-radius:7px">
@@ -803,7 +803,7 @@ async function switchBin(binId, isTest){
     notes     = (data && data.notes)    || {};
     weAnchors = (data && Array.isArray(data.weAnchors)) ? data.weAnchors : [];
     lastView  = (data && data.lastView) || {};
-    if(data && data.customCodes) Object.assign(CODES, data.customCodes);
+    applyCodeCfg(data);
     setStatus(isTest ? '🧪 Mode TEST' : '✅ Données à jour', isTest ? 'sync-pending' : 'sync-ok');
   }catch(e){ setStatus('⚠️ Erreur de chargement','sync-err'); }
   applyLastView();
@@ -850,7 +850,7 @@ async function doLoad(){
       if(data && data.notes)   { notes    = data.notes;    }
       if(data && Array.isArray(data.weAnchors)){ weAnchors = data.weAnchors; }
       if(data && data.lastView){ lastView = data.lastView; }
-      if(data && data.customCodes){ Object.assign(CODES, data.customCodes); }
+      applyCodeCfg(data);
       // Sync local
       localStorage.setItem('apu_plan', JSON.stringify(planning));
       localStorage.setItem('apu_trame', JSON.stringify(trames));
@@ -1079,11 +1079,9 @@ function buildTable(y,mo,getFn,clickFnStr){
       const isT=today.getFullYear()===y&&today.getMonth()===mo&&today.getDate()===d;
       let bg='';let fw='normal';let cfg='';
       if(code==='N'){fw='bold';tn++;}
-      else if(code==='CA')bg='#FF4D4D';else if(code==='RH')bg='#c6efce';
-      else if(code==='JS'||code==='*'){/* étoile blanche */}else if(code==='*R')bg='#FF4D4D';else if(code==='TP')bg='#E2EFDA';
-      else if(code==='HP')bg='#FCE4D6';else if(code==='RR')bg='#D9E1F2';
-      else if(code==='FO')bg='#0d47a1';else if(code==='FM')bg='#E1BEE7';else if(code==='BL'||code==='NB')bg='#BBDEFB';
-      else if(code&&CODES[code]){bg=CODES[code].bg;cfg=CODES[code].fg||'';}else if(code)bg='#eee';
+      else if(code==='JS'||code==='*'){/* étoile blanche, pas de fond */}
+      else if(code&&CODES[code]){bg=CODES[code].bg;cfg=CODES[code].fg||'';}
+      else if(code)bg='#eee';
       const fer=isFerie(y,mo,d);
       if(!bg&&wt)bg=wt==='rose'?'#fde8fd':wt==='vert'?'#dff5c2':'#FFFFA0';
       let st=(bg?`background:${bg} !important;`:'')+'font-weight:'+fw+';'+(cfg?`color:${cfg};`:'');
@@ -1594,13 +1592,13 @@ function togglePw(){const i=document.getElementById('loginPw');if(i)i.type=(i.ty
 
 // ============ ADMINISTRATION ============
 const ROLE_LABELS={read:'Lecture seule',write:'Lecture / écriture',admin:'Administrateur',blocked:'🚫 Bloqué (accès retiré)'};
+function applyCodeCfg(data){ if(!data)return; if(data.customCodes)Object.assign(CODES,data.customCodes); if(Array.isArray(data.hiddenCodes))data.hiddenCodes.forEach(k=>{ if(k!=='N'&&k!=='') delete CODES[k]; }); }
 function openAdmin(){ if(currentRole!=='admin')return; document.getElementById('adminModal').style.display='flex'; renderAdminUsers(); renderCustomCodesList(); renderAdminLogs(); }
 const BUILTIN_CODES={'N':1,'CA':1,'RH':1,'*':1,'*R':1,'TP':1,'HP':1,'RR':1,'FO':1,'FM':1,'BL':1,'NB':1,'':1};
-async function renderCustomCodesList(){
-  const el=document.getElementById('adminCodes'); if(!el)return; el.textContent='…';
-  try{ const snap=await DATA_DOC.get(); const cc=(snap.exists&&snap.data().customCodes)||{}; const keys=Object.keys(cc);
-    el.innerHTML=keys.length?keys.map(k=>'<span style="display:inline-flex;align-items:center;gap:6px;margin:3px 6px 3px 0;padding:3px 10px;border-radius:6px;border:1px solid #ddd;background:'+cc[k].bg+';color:'+(cc[k].fg||'#000')+'">'+k+' — '+cc[k].label+' <button onclick="editCustomCode(\''+k+'\')" style="border:none;background:transparent;cursor:pointer;color:inherit" title="Modifier">✎</button><button onclick="removeCustomCode(\''+k+'\')" style="border:none;background:transparent;cursor:pointer;color:inherit;font-weight:bold" title="Supprimer">✕</button></span>').join(''):'<span style="color:#888">Aucun bouton personnalisé pour l\'instant.</span>';
-  }catch(e){ el.textContent='Erreur: '+e.message; }
+function renderCustomCodesList(){
+  const el=document.getElementById('adminCodes'); if(!el)return;
+  const keys=Object.keys(CODES).filter(k=>k!=='');
+  el.innerHTML=keys.map(k=>{const c=CODES[k];const del=(k==='N')?'':'<button onclick="deleteCode(\''+k+'\')" style="border:none;background:transparent;cursor:pointer;color:inherit;font-weight:bold" title="Supprimer">✕</button>';return '<span style="display:inline-flex;align-items:center;gap:6px;margin:3px 6px 3px 0;padding:3px 10px;border-radius:6px;border:1px solid #ddd;background:'+c.bg+';color:'+(c.fg||'#000')+'">'+k+' — '+c.label+' <button onclick="editCustomCode(\''+k+'\')" style="border:none;background:transparent;cursor:pointer;color:inherit" title="Modifier">✎</button>'+del+'</span>';}).join('');
 }
 async function addCustomCode(){
   const key=(document.getElementById('ncCode').value||'').trim();
@@ -1609,27 +1607,31 @@ async function addCustomCode(){
   const fg=document.getElementById('ncFg').value||'#000';
   const msg=document.getElementById('ncMsg'); if(msg)msg.textContent='';
   if(!key){ alert('Entre un code court (ex. VM).'); return; }
-  if(BUILTIN_CODES[key]){ alert('Le code « '+key+' » est un bouton d\'origine. Choisis un autre code.'); return; }
   try{
-    const snap=await DATA_DOC.get(); const cc=(snap.exists&&snap.data().customCodes)||{};
+    const snap=await DATA_DOC.get(); const d=(snap.exists&&snap.data())||{};
+    const cc=d.customCodes||{}; let hidden=Array.isArray(d.hiddenCodes)?d.hiddenCodes:[];
     cc[key]={label,bg,fg};
-    await DATA_DOC.set({customCodes:cc},{merge:true});
+    hidden=hidden.filter(h=>h!==key);
+    await DATA_DOC.set({customCodes:cc,hiddenCodes:hidden},{merge:true});
     CODES[key]={label,bg,fg};
-    logEvent('code','Bouton ajouté : '+key+' ('+label+')');
-    if(msg)msg.textContent='✅ Bouton « '+key+' » ajouté.';
+    logEvent('code','Bouton enregistré : '+key+' ('+label+')');
+    if(msg)msg.textContent='✅ Bouton « '+key+' » enregistré.';
     document.getElementById('ncCode').value=''; document.getElementById('ncLabel').value='';
     render(); renderStats(); renderAnnuel(); if(trameUnlocked)renderTrame(); renderCustomCodesList();
   }catch(e){ alert('Impossible : '+e.message); }
 }
-async function removeCustomCode(key){
+async function deleteCode(key){
+  if(key==='N'||key===''){ alert('Ce bouton est essentiel et ne peut pas être supprimé.'); return; }
   if(!confirm('Supprimer le bouton « '+key+' » ?')) return;
   try{
-    const snap=await DATA_DOC.get(); const cc=(snap.exists&&snap.data().customCodes)||{};
-    delete cc[key];
-    await DATA_DOC.set({customCodes:cc},{merge:true});
+    const snap=await DATA_DOC.get(); const d=(snap.exists&&snap.data())||{};
+    const cc=d.customCodes||{}; let hidden=Array.isArray(d.hiddenCodes)?d.hiddenCodes:[];
+    if(cc[key]) delete cc[key];
+    if(BUILTIN_CODES[key] && !hidden.includes(key)) hidden.push(key);
+    await DATA_DOC.set({customCodes:cc,hiddenCodes:hidden},{merge:true});
     delete CODES[key];
     logEvent('code','Bouton supprimé : '+key);
-    render(); if(trameUnlocked)renderTrame(); renderCustomCodesList();
+    render(); renderStats(); renderAnnuel(); if(trameUnlocked)renderTrame(); renderCustomCodesList();
   }catch(e){ alert('Impossible : '+e.message); }
 }
 function editCustomCode(key){
@@ -1681,8 +1683,8 @@ async function doImportJsonbin(){
     const r=await fetch('https://api.jsonbin.io/v3/b/'+SHARED_BIN_ID+'/latest',{headers:{'X-Master-Key':MASTER_KEY}});
     if(!r.ok) throw new Error('JSONBin HTTP '+r.status);
     const rec=(await r.json()).record;
-    const curSnap=await DATA_DOC.get(); const keepCC=(curSnap.exists&&curSnap.data().customCodes)||{};
-    await DATA_DOC.set({planning:rec.planning||{},trames:rec.trames||{},notes:rec.notes||{},weAnchors:Array.isArray(rec.weAnchors)?rec.weAnchors:[],lastView:rec.lastView||{},customCodes:keepCC,_updatedAt:firebase.firestore.FieldValue.serverTimestamp(),_updatedBy:(currentUser&&currentUser.email)||'import'});
+    const curSnap=await DATA_DOC.get(); const curD=(curSnap.exists&&curSnap.data())||{}; const keepCC=curD.customCodes||{}; const keepHidden=Array.isArray(curD.hiddenCodes)?curD.hiddenCodes:[];
+    await DATA_DOC.set({planning:rec.planning||{},trames:rec.trames||{},notes:rec.notes||{},weAnchors:Array.isArray(rec.weAnchors)?rec.weAnchors:[],lastView:rec.lastView||{},customCodes:keepCC,hiddenCodes:keepHidden,_updatedAt:firebase.firestore.FieldValue.serverTimestamp(),_updatedBy:(currentUser&&currentUser.email)||'import'});
     logEvent('import','Import planning JSONBin → Firebase');
     msg.textContent='✅ Import réussi. Actualisation…';
     await doLoad(); applyLastView(); render(); renderStats(); renderAnnuel(); if(trameUnlocked) renderTrame();
@@ -1771,7 +1773,7 @@ async function refreshFromCloud(){
     if(data && data.notes)   { notes    = data.notes;    }
     if(data && Array.isArray(data.weAnchors)){ weAnchors = data.weAnchors; }
     if(data && data.lastView){ lastView = data.lastView; }
-    if(data && data.customCodes){ Object.assign(CODES, data.customCodes); }
+    applyCodeCfg(data);
     localStorage.setItem('apu_plan', JSON.stringify(planning));
     localStorage.setItem('apu_trame', JSON.stringify(trames));
     applyLastView();
