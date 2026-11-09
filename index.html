@@ -273,7 +273,7 @@ body.readonly [onclick*="undoLast"],body.readonly [onclick*="openWeModal"]{displ
 </div>
 <script>try{if(sessionStorage.getItem('apu_mode'))document.getElementById('chooserGate').classList.add('hidden');}catch(e){}</script>
 
-<h1>🏥 Planning APU — Service de Nuit <span class="sub">Hôpital</span><button class="nb changer" style="margin-left:auto" onclick="backToChooser()">⇄ Changer de planning</button><span id="syncStatus" style="font-size:11px;opacity:.8;font-weight:normal;margin-left:12px">⏳ Connexion...</span><span id="userBadge" style="font-size:11px;opacity:.9;font-weight:normal;margin-left:14px"></span><span id="roleBadge" style="font-size:11px;font-weight:bold;margin-left:8px;background:rgba(255,255,255,.18);padding:2px 9px;border-radius:11px"></span><button id="adminBtn" class="nb" style="background:#6a1b9a;margin-left:10px;display:none" onclick="openAdmin()">👑 Admin</button><button class="nb" style="background:#8B0000;margin-left:10px" onclick="doLogout()">⎋ Déconnexion</button></h1>
+<h1>🏥 Planning APU — Service de Nuit <span class="sub">Hôpital</span><button class="nb changer" style="margin-left:auto" onclick="backToChooser()">⇄ Changer de planning</button><span id="syncStatus" style="font-size:11px;opacity:.8;font-weight:normal;margin-left:12px">⏳ Connexion...</span><span id="userBadge" style="font-size:11px;opacity:.9;font-weight:normal;margin-left:14px"></span><span id="roleBadge" style="font-size:11px;font-weight:bold;margin-left:8px;background:rgba(255,255,255,.18);padding:2px 9px;border-radius:11px"></span><button id="adminBtn" class="nb" style="background:#6a1b9a;margin-left:10px;display:none" onclick="openAdmin()">👑 Admin</button><button class="nb" style="background:#0a7a5a;margin-left:10px" onclick="changeMyPassword()">🔑 Mot de passe</button><button class="nb" style="background:#8B0000;margin-left:10px" onclick="doLogout()">⎋ Déconnexion</button></h1>
 <div class="tabs">
   <button class="tab active" onclick="showTab('planning')">📅 Planning</button>
   <button class="tab" onclick="showTab('trame')">📋 Trames</button>
@@ -1610,6 +1610,27 @@ function doLogin(){const email=(document.getElementById('loginEmail').value||'')
 function doSignup(){ authErr("L'inscription libre est désactivée. Demande à l'administrateur de te créer un accès."); }
 function doReset(){const email=(document.getElementById('loginEmail').value||'').trim();if(!email){authErr("Entre ton e-mail pour recevoir le lien.");return;}fbAuth.sendPasswordResetEmail(email).then(()=>authOk("E-mail de réinitialisation envoyé (vérifie les spams).")).catch(e=>authErr(fbMsg(e.code)));}
 function doLogout(){ if(confirm('Se déconnecter ?')) fbAuth.signOut(); }
+async function changeMyPassword(){
+  if(!fbAuth.currentUser){ alert('Connectez-vous d\'abord.'); return; }
+  const p1=prompt('Choisissez votre NOUVEAU mot de passe (au moins 6 caractères) :'); if(p1===null) return;
+  if((p1||'').length<6){ alert('Le mot de passe doit faire au moins 6 caractères.'); return; }
+  const p2=prompt('Confirmez le nouveau mot de passe :'); if(p2===null) return;
+  if(p1!==p2){ alert('Les deux mots de passe ne correspondent pas.'); return; }
+  try{
+    await fbAuth.currentUser.updatePassword(p1);
+    logEvent('password','Mot de passe modifié');
+    alert('✅ Mot de passe modifié. Utilisez-le lors de vos prochaines connexions.');
+  }catch(e){
+    if(e.code==='auth/requires-recent-login'){ alert('Par sécurité, reconnectez-vous puis refaites « 🔑 Mot de passe » (Déconnexion → reconnexion).'); }
+    else{ alert('Impossible : '+(e.message||e.code||e)); }
+  }
+}
+async function resetUserPw(email){
+  if(!email) return;
+  if(!confirm('Envoyer un e-mail de réinitialisation du mot de passe à :\n'+email+' ?\n\n(Nécessite que l\'envoi d\'e-mails fonctionne — voir la config SMTP.)')) return;
+  try{ await fbAuth.sendPasswordResetEmail(email); logEvent('password','Lien de réinitialisation envoyé à '+email); alert('✅ E-mail de réinitialisation envoyé à '+email+'.\n(S\'il n\'arrive pas, c\'est un problème d\'envoi d\'e-mails — configurez le SMTP.)'); }
+  catch(e){ alert('Impossible : '+(e.message||e.code||e)); }
+}
 function togglePw(){const i=document.getElementById('loginPw');if(i)i.type=(i.type==='password'?'text':'password');}
 
 // ============ ADMINISTRATION ============
@@ -1716,7 +1737,7 @@ async function renderAdminUsers(){
     const snap=await fbDB.collection('users').get();
     let h='<table style="width:100%;border-collapse:collapse"><tr style="text-align:left;color:#667"><th style="padding:4px 6px">E-mail</th><th style="padding:4px 6px">Droits</th><th style="padding:4px 6px">Action</th></tr>';
     snap.forEach(d=>{const u=d.data(),uid=d.id,r=u.role||'read';const me=(currentUser&&uid===currentUser.uid);
-      h+='<tr style="border-top:1px solid #eee"><td style="padding:6px">'+(u.email||uid)+(me?' <b>(moi)</b>':'')+'</td><td style="padding:6px"><select '+(me?'disabled title="Tu ne peux pas changer ton propre rôle"':'onchange="setUserRole(\''+uid+'\',this.value)"')+'>'+['read','write','admin','blocked'].map(x=>'<option value="'+x+'"'+(x===r?' selected':'')+'>'+ROLE_LABELS[x]+'</option>').join('')+'</select></td><td style="padding:6px">'+(me?'':'<button class="nb" style="background:#8B0000;font-size:11px;padding:3px 9px" onclick="blockUser(\''+uid+'\',\''+(u.email||'')+'\')">🗑 Supprimer</button>')+'</td></tr>';
+      h+='<tr style="border-top:1px solid #eee"><td style="padding:6px">'+(u.email||uid)+(me?' <b>(moi)</b>':'')+'</td><td style="padding:6px"><select '+(me?'disabled title="Tu ne peux pas changer ton propre rôle"':'onchange="setUserRole(\''+uid+'\',this.value)"')+'>'+['read','write','admin','blocked'].map(x=>'<option value="'+x+'"'+(x===r?' selected':'')+'>'+ROLE_LABELS[x]+'</option>').join('')+'</select></td><td style="padding:6px">'+(me?'':'<button class="nb" style="background:#0a7a5a;font-size:11px;padding:3px 9px;margin-right:5px" onclick="resetUserPw(\''+(u.email||'').replace(/'/g,"\\'")+'\')">🔑 Réinit.</button><button class="nb" style="background:#8B0000;font-size:11px;padding:3px 9px" onclick="blockUser(\''+uid+'\',\''+(u.email||'')+'\')">🗑 Supprimer</button>')+'</td></tr>';
     });
     el.innerHTML=h+'</table>';
   }catch(e){ el.textContent='Erreur: '+e.message; }
