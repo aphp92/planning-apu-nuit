@@ -544,10 +544,10 @@ body.readonly [onclick*="undoLast"],body.readonly [onclick*="openWeModal"]{displ
     <div style="font-size:11.5px;color:#777;margin-bottom:6px">Les comptes se créent eux-mêmes (inscription). Ici tu attribues les droits : lecture seule / lecture-écriture / administrateur.</div>
     <div id="adminUsers" style="font-size:13px">Chargement…</div>
     <h3 style="font-size:14px;margin:18px 0 6px;color:#0f2744">Boutons (codes) — ajouter / modifier / supprimer</h3>
-    <div style="font-size:11.5px;color:#777;margin-bottom:6px">✎ = modifier un bouton (même ceux d'origine) · ✕ = supprimer. Pour en créer un : remplis le code (+ couleurs) et « ➕ Ajouter ». Tout est partagé avec l'équipe.</div>
+    <div style="font-size:11.5px;color:#777;margin-bottom:6px">✎ = modifier (même les boutons d'origine) · ✕ = supprimer. Pour en créer un : choisis une couleur et « ➕ Ajouter ». <b>Code et libellé facultatifs</b> : laisse-les vides pour une simple case colorée (ex. case rouge). Tout est partagé avec l'équipe.</div>
     <div id="adminCodes" style="font-size:13px;margin-bottom:8px"></div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px">
-      <input id="ncCode" placeholder="Code (ex. VM)" maxlength="4" style="width:95px;padding:6px 8px;border:1px solid #ccd3da;border-radius:7px">
+      <input id="ncCode" placeholder="Code (facultatif)" maxlength="4" style="width:110px;padding:6px 8px;border:1px solid #ccd3da;border-radius:7px">
       <input id="ncLabel" placeholder="Libellé (ex. VM — Visite méd.)" style="flex:1;min-width:150px;padding:6px 8px;border:1px solid #ccd3da;border-radius:7px">
       <label style="display:flex;align-items:center;gap:4px">Fond <input type="color" id="ncBg" value="#ffe0b2" style="width:34px;height:26px;padding:0;border:1px solid #ccc"></label>
       <label style="display:flex;align-items:center;gap:4px">Texte <select id="ncFg" style="padding:5px;border-radius:6px"><option value="#000">Noir</option><option value="#fff">Blanc</option></select></label>
@@ -1087,7 +1087,7 @@ function buildTable(y,mo,getFn,clickFnStr){
       let st=(bg?`background:${bg} !important;`:'')+'font-weight:'+fw+';'+(cfg?`color:${cfg};`:'');
       if(isT)st+='outline:2px solid red;outline-offset:-2px;';
       const cc=code.replace(/'/g,"\\'");
-      const disp=(code==='JS'||code==='*'||code==='*R')?'<span style="font-size:13px;font-weight:bold;line-height:1">✱</span>':((code==='FO'||code==='BL'||code==='CA')?'':(code==='FM'?'FO':(code==='NB'?'N':code)));
+      const disp=(code==='JS'||code==='*'||code==='*R')?'<span style="font-size:13px;font-weight:bold;line-height:1">✱</span>':((code==='FO'||code==='BL'||code==='CA'||(CODES[code]&&CODES[code].noText))?'':(code==='FM'?'FO':(code==='NB'?'N':code)));
       h+=`<td class="${wt?`we-${wt}`:''}" style="${st}" title="${ag} · ${d} ${MONTHS[mo]}" onclick="${clickFnStr}('${ag}',${d},'${cc}',${y},${mo})">${disp||'&nbsp;'}</td>`;
     }
     // Compte un WE uniquement si N le samedi ET N le dimanche
@@ -1128,7 +1128,7 @@ function openModal(ag,d,code,y,mo){
   Object.entries(CODES).forEach(([c,info])=>{
     const b=document.createElement('button');
     b.className='ob'+(c===code?' sel':'');
-    b.style.background=info.bg;b.style.color=info.fg;b.textContent=info.label;
+    b.style.background=info.bg;b.style.color=info.fg;b.textContent=info.label||'   ';
     b.onclick=()=>{modalSel=c;applyModal();};
     opts.appendChild(b);
   });
@@ -1593,29 +1593,37 @@ function togglePw(){const i=document.getElementById('loginPw');if(i)i.type=(i.ty
 // ============ ADMINISTRATION ============
 const ROLE_LABELS={read:'Lecture seule',write:'Lecture / écriture',admin:'Administrateur',blocked:'🚫 Bloqué (accès retiré)'};
 function applyCodeCfg(data){ if(!data)return; if(data.customCodes)Object.assign(CODES,data.customCodes); if(Array.isArray(data.hiddenCodes))data.hiddenCodes.forEach(k=>{ if(k!=='N'&&k!=='') delete CODES[k]; }); }
-function openAdmin(){ if(currentRole!=='admin')return; document.getElementById('adminModal').style.display='flex'; renderAdminUsers(); renderCustomCodesList(); renderAdminLogs(); }
+function openAdmin(){ if(currentRole!=='admin')return; window.__editingKey=null; document.getElementById('adminModal').style.display='flex'; renderAdminUsers(); renderCustomCodesList(); renderAdminLogs(); }
 const BUILTIN_CODES={'N':1,'CA':1,'RH':1,'*':1,'*R':1,'TP':1,'HP':1,'RR':1,'FO':1,'FM':1,'BL':1,'NB':1,'':1};
 function renderCustomCodesList(){
   const el=document.getElementById('adminCodes'); if(!el)return;
   const keys=Object.keys(CODES).filter(k=>k!=='');
-  el.innerHTML=keys.map(k=>{const c=CODES[k];const del=(k==='N')?'':'<button onclick="deleteCode(\''+k+'\')" style="border:none;background:transparent;cursor:pointer;color:inherit;font-weight:bold" title="Supprimer">✕</button>';return '<span style="display:inline-flex;align-items:center;gap:6px;margin:3px 6px 3px 0;padding:3px 10px;border-radius:6px;border:1px solid #ddd;background:'+c.bg+';color:'+(c.fg||'#000')+'">'+k+' — '+c.label+' <button onclick="editCustomCode(\''+k+'\')" style="border:none;background:transparent;cursor:pointer;color:inherit" title="Modifier">✎</button>'+del+'</span>';}).join('');
+  el.innerHTML=keys.map(k=>{const c=CODES[k];const del=(k==='N')?'':'<button onclick="deleteCode(\''+k+'\')" style="border:none;background:transparent;cursor:pointer;color:inherit;font-weight:bold" title="Supprimer">✕</button>';const nm=c.noText?'(couleur)':(k+(c.label&&c.label!==k?(' — '+c.label):''));return '<span style="display:inline-flex;align-items:center;gap:6px;margin:3px 6px 3px 0;padding:3px 12px;border-radius:6px;border:1px solid #ddd;background:'+c.bg+';color:'+(c.fg||'#000')+'">'+nm+' <button onclick="editCustomCode(\''+k+'\')" style="border:none;background:transparent;cursor:pointer;color:inherit" title="Modifier">✎</button>'+del+'</span>';}).join('');
 }
+function genColorKey(cc){ let i=1; while(CODES['_c'+i]||(cc&&cc['_c'+i])) i++; return '_c'+i; }
 async function addCustomCode(){
-  const key=(document.getElementById('ncCode').value||'').trim();
-  const label=(document.getElementById('ncLabel').value||'').trim()||key;
+  const raw=(document.getElementById('ncCode').value||'').trim();
+  const labelIn=(document.getElementById('ncLabel').value||'').trim();
   const bg=document.getElementById('ncBg').value||'#eeeeee';
   const fg=document.getElementById('ncFg').value||'#000';
   const msg=document.getElementById('ncMsg'); if(msg)msg.textContent='';
-  if(!key){ alert('Entre un code court (ex. VM).'); return; }
   try{
     const snap=await DATA_DOC.get(); const d=(snap.exists&&snap.data())||{};
     const cc=d.customCodes||{}; let hidden=Array.isArray(d.hiddenCodes)?d.hiddenCodes:[];
-    cc[key]={label,bg,fg};
+    let key=raw, noText=false;
+    if(!key){
+      if(window.__editingKey && CODES[window.__editingKey] && CODES[window.__editingKey].noText){ key=window.__editingKey; noText=true; }
+      else { key=genColorKey(cc); noText=true; }            // aucun code -> nouveau bouton couleur seule
+    }
+    const label=labelIn||(noText?'':key);
+    const obj={label,bg,fg}; if(noText)obj.noText=true;
+    cc[key]=obj;
     hidden=hidden.filter(h=>h!==key);
     await DATA_DOC.set({customCodes:cc,hiddenCodes:hidden},{merge:true});
-    CODES[key]={label,bg,fg};
-    logEvent('code','Bouton enregistré : '+key+' ('+label+')');
-    if(msg)msg.textContent='✅ Bouton « '+key+' » enregistré.';
+    CODES[key]=obj;
+    logEvent('code','Bouton enregistré : '+(noText?'(couleur)':key));
+    if(msg)msg.textContent='✅ Bouton enregistré.';
+    window.__editingKey=null;
     document.getElementById('ncCode').value=''; document.getElementById('ncLabel').value='';
     render(); renderStats(); renderAnnuel(); if(trameUnlocked)renderTrame(); renderCustomCodesList();
   }catch(e){ alert('Impossible : '+e.message); }
@@ -1636,12 +1644,13 @@ async function deleteCode(key){
 }
 function editCustomCode(key){
   const info=CODES[key]; if(!info){ alert('Bouton introuvable.'); return; }
-  document.getElementById('ncCode').value=key;
+  window.__editingKey=key;
+  document.getElementById('ncCode').value=info.noText?'':key;
   document.getElementById('ncLabel').value=(info.label===key?'':(info.label||''));
   const bgI=document.getElementById('ncBg'); if(/^#[0-9a-fA-F]{6}$/.test(info.bg||'')) bgI.value=info.bg;
   document.getElementById('ncFg').value=((info.fg==='#fff'||info.fg==='#ffffff')?'#fff':'#000');
-  const msg=document.getElementById('ncMsg'); if(msg)msg.textContent='✎ Modifie les champs puis clique « ➕ Ajouter » pour mettre à jour « '+key+' ».';
-  try{document.getElementById('ncLabel').focus();}catch(e){}
+  const msg=document.getElementById('ncMsg'); if(msg)msg.textContent='✎ Modifie puis clique « ➕ Ajouter » pour mettre à jour'+(info.noText?' cette couleur':' « '+key+' »')+'.';
+  try{(info.noText?document.getElementById('ncBg'):document.getElementById('ncLabel')).focus();}catch(e){}
 }
 function closeAdmin(){ document.getElementById('adminModal').style.display='none'; }
 async function renderAdminUsers(){
