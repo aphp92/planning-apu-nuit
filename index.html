@@ -1614,7 +1614,7 @@ function togglePw(){const i=document.getElementById('loginPw');if(i)i.type=(i.ty
 
 // ============ ADMINISTRATION ============
 const ROLE_LABELS={read:'Lecture seule',write:'Lecture / écriture',admin:'Administrateur',blocked:'🚫 Bloqué (accès retiré)'};
-function applyCodeCfg(data){ if(!data)return; if(data.customCodes)Object.assign(CODES,data.customCodes); if(Array.isArray(data.hiddenCodes))data.hiddenCodes.forEach(k=>{ if(k!=='N'&&k!=='') delete CODES[k]; }); }
+function applyCodeCfg(data){ if(!data)return; if(data.customCodes)Object.assign(CODES,data.customCodes); if(Array.isArray(data.hiddenCodes))data.hiddenCodes.forEach(k=>{ if(k!=='N'&&k!==''&&!(typeof BUILTIN_CODES!=='undefined'&&BUILTIN_CODES[k])) delete CODES[k]; }); }
 function openAdmin(){ if(currentRole!=='admin')return; window.__editingKey=null; document.getElementById('adminModal').style.display='flex'; renderAdminUsers(); renderCustomCodesList(); renderAdminLogs(); }
 const BUILTIN_CODES={'N':1,'CA':1,'RH':1,'*':1,'*R':1,'TP':1,'HP':1,'RR':1,'FO':1,'FM':1,'BL':1,'NB':1,'':1};
 function renderCustomCodesList(){
@@ -1651,13 +1651,11 @@ async function addCustomCode(){
   }catch(e){ alert('Impossible : '+e.message); }
 }
 async function deleteCode(key){
-  if(key==='N'||key===''){ alert('Ce bouton est essentiel et ne peut pas être supprimé.'); return; }
+  if(key===''||BUILTIN_CODES[key]){ alert('Code standard protégé (N, CA, RH, FO, étoiles, TP, HP, RR, Bleu…) : il ne peut pas être supprimé ni masqué.\n\nSeuls les codes personnalisés que vous avez créés sont supprimables.'); return; }
   if(!confirm('Supprimer le bouton « '+key+' » ?')) return;
   try{
     const snap=await DATA_DOC.get(); const d=(snap.exists&&snap.data())||{};
-    let hidden=Array.isArray(d.hiddenCodes)?d.hiddenCodes.slice():[];
-    if(BUILTIN_CODES[key] && !hidden.includes(key)) hidden.push(key);
-    const upd={ hiddenCodes: hidden, _updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+    const upd={ _updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
     if(d.customCodes && d.customCodes[key]!==undefined){ upd['customCodes.'+key]=firebase.firestore.FieldValue.delete(); }  // vraie suppression de la clé
     await DATA_DOC.update(upd);
     delete CODES[key];
