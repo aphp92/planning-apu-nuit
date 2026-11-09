@@ -585,6 +585,9 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const fbAuth = firebase.auth();
+// Persistance SESSION : la connexion survit à un F5 (même onglet) mais se vide à la
+// fermeture de l'onglet/fenêtre → il faut se reconnecter (sécurité navigateur partagé).
+try{ fbAuth.setPersistence(firebase.auth.Auth.Persistence.SESSION); }catch(e){}
 const fbDB   = firebase.firestore();
 const DATA_DOC = fbDB.collection('app').doc('data');     // tout le planning dans 1 document
 const ADMIN_EMAIL = 'bruno.somma77@gmail.com';           // admin par défaut (bootstrap)
@@ -1603,7 +1606,7 @@ function openAfterLogin(){
 function authErr(m){const e=document.getElementById('loginErr');if(e)e.textContent=m;const o=document.getElementById('loginOk');if(o)o.textContent='';}
 function authOk(m){const o=document.getElementById('loginOk');if(o)o.textContent=m;const e=document.getElementById('loginErr');if(e)e.textContent='';}
 function fbMsg(c){const m={'auth/invalid-email':"Adresse e-mail invalide.",'auth/missing-password':"Entre ton mot de passe.",'auth/weak-password':"Mot de passe trop court (6 caractères min).",'auth/email-already-in-use':"Un compte existe déjà avec cet e-mail.",'auth/invalid-credential':"E-mail ou mot de passe incorrect.",'auth/wrong-password':"Mot de passe incorrect.",'auth/user-not-found':"Aucun compte avec cet e-mail.",'auth/network-request-failed':"Problème de connexion internet.",'auth/too-many-requests':"Trop de tentatives, réessaie plus tard."};return m[c]||("Erreur : "+c);}
-function doLogin(){const email=(document.getElementById('loginEmail').value||'').trim();const pw=document.getElementById('loginPw').value||'';if(!email){authErr("Entre ton adresse e-mail.");return;}authOk('Connexion…');fbAuth.signInWithEmailAndPassword(email,pw).catch(e=>authErr(fbMsg(e.code)));}
+function doLogin(){const email=(document.getElementById('loginEmail').value||'').trim();const pw=document.getElementById('loginPw').value||'';if(!email){authErr("Entre ton adresse e-mail.");return;}authOk('Connexion…');fbAuth.setPersistence(firebase.auth.Auth.Persistence.SESSION).then(function(){return fbAuth.signInWithEmailAndPassword(email,pw);}).catch(e=>authErr(fbMsg(e.code)));}
 function doSignup(){ authErr("L'inscription libre est désactivée. Demande à l'administrateur de te créer un accès."); }
 function doReset(){const email=(document.getElementById('loginEmail').value||'').trim();if(!email){authErr("Entre ton e-mail pour recevoir le lien.");return;}fbAuth.sendPasswordResetEmail(email).then(()=>authOk("E-mail de réinitialisation envoyé (vérifie les spams).")).catch(e=>authErr(fbMsg(e.code)));}
 function doLogout(){ if(confirm('Se déconnecter ?')) fbAuth.signOut(); }
