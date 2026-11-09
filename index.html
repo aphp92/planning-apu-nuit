@@ -1860,8 +1860,9 @@ async function doExcelExport(){
     const WE_COLORS={rose:'FFFDE8FD',vert:'FFDFF5C2',jaune:'FFFEFFC4'};
     const WE_HDR_COLORS={rose:'FFD040CC',vert:'FF5FAA20',jaune:'FFD4A900'};
     const FERIE_BG='FFFF6B35';
-    const CODE_BG={CA:'FFFF4D4D',RH:'FFC6EFCE',TP:'FFE2EFDA',HP:'FFFCE4D6',RR:'FFD9E1F2',FO:'FF0D47A1','*R':'FFFF4D4D',FM:'FFE1BEE7',BL:'FFBBDEFB',NB:'FFBBDEFB'};
-    const CODE_FG={FO:'FFFFFFFF'};
+    const toArgb=(h)=>{h=(h||'').replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');return 'FF'+(h.toUpperCase());};
+    const CODE_BG={}, CODE_FG={};
+    Object.keys(CODES).forEach(k=>{ if(k===''||k==='N')return; if(CODES[k].bg) CODE_BG[k]=toArgb(CODES[k].bg); if(CODES[k].fg&&CODES[k].fg!=='#000'&&CODES[k].fg!=='#000000') CODE_FG[k]=toArgb(CODES[k].fg); });
     const TOT_BG='FFFFFACD';
     const TOTROW_BG='FF155E8E';
 
@@ -1933,7 +1934,7 @@ async function doExcelExport(){
         const rowCodes=[];
         for(let d=1;d<=dim;d++){
           const code=G(year,mo,ag,d);
-          rowVals.push((code==='JS'||code==='*'||code==='*R')?'*':((code==='FO'||code==='BL')?'':(code==='FM'?'FO':(code==='NB'?'N':(code||'')))));
+          rowVals.push((code==='JS'||code==='*'||code==='*R')?'*':((code==='FO'||code==='BL'||(CODES[code]&&CODES[code].noText))?'':(code==='FM'?'FO':(code==='NB'?'N':(code||'')))));
           rowCodes.push(code);
           if(code==='N'){tn++;const dow=new Date(year,mo,d).getDay();if(dow===5)tv++;}
         }
