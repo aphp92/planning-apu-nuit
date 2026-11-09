@@ -603,7 +603,7 @@ const TRAME_PW='admin2026'; // ← Changer le mot de passe ici
 
 const CODES={
   'N' :{label:'N — Nuit',      bg:'#fffde0',fg:'#000'},
-  'CA':{label:'CA — Congé',    bg:'#FF4D4D',fg:'#000'},
+  'CA':{label:'CA — Congé',    bg:'#FF4D4D',fg:'#000',noText:true},
   'RH':{label:'RH — Récup',    bg:'#c6efce',fg:'#000'},
   '*' :{label:'✱',            bg:'#fff',   fg:'#000'},
   '*R':{label:'✱',            bg:'#FF4D4D',fg:'#000'},
@@ -1119,8 +1119,8 @@ function buildTable(y,mo,getFn,clickFnStr){
 // ---- Planning ----
 function renderLegend(){
   const el=document.getElementById('legendCodes'); if(!el)return;
-  const keys=Object.keys(CODES).filter(k=>k!==''&&k!=='N');
-  el.innerHTML=keys.map(k=>{const c=CODES[k];const lab=(k==='*'||k==='*R'||k==='JS')?'✱':(c.noText?'':(c.label||k));return '<span class="lc" style="background:'+c.bg+'"></span> '+lab+' &nbsp;';}).join('');
+  const keys=Object.keys(CODES).filter(k=>k!==''&&k!=='N'&&!CODES[k].noText);
+  el.innerHTML=keys.map(k=>{const c=CODES[k];const lab=(k==='*'||k==='*R'||k==='JS')?'✱':(c.label||k);return '<span class="lc" style="background:'+c.bg+'"></span> '+lab+' &nbsp;';}).join('');
 }
 function render(){
   renderLegend();
@@ -1145,7 +1145,7 @@ function openModal(ag,d,code,y,mo){
   Object.entries(CODES).forEach(([c,info])=>{
     const b=document.createElement('button');
     b.className='ob'+(c===code?' sel':'');
-    b.style.background=info.bg;b.style.color=info.fg;b.textContent=info.label||'   ';
+    b.style.background=info.bg;b.style.color=info.fg;b.textContent=info.noText?'   ':(info.label||'   ');
     b.onclick=()=>{modalSel=c;applyModal();};
     opts.appendChild(b);
   });
@@ -1265,7 +1265,7 @@ function togglePmRow(n){
 }
 function legendHTML(){
   const items=['<span style="display:inline-block;width:12px;height:12px;background:#FF6B35;border:1px solid #999;vertical-align:middle;margin-right:3px"></span>Jour férié'];
-  Object.keys(CODES).forEach(k=>{ if(k===''||k==='N')return; const c=CODES[k]; const lab=(k==='*'||k==='*R'||k==='JS')?'✱':(c.noText?'(couleur)':(c.label||k)); items.push('<span style="display:inline-block;width:12px;height:12px;background:'+c.bg+';border:1px solid #999;vertical-align:middle;margin-right:3px"></span>'+lab); });
+  Object.keys(CODES).forEach(k=>{ if(k===''||k==='N')return; const c=CODES[k]; if(c.noText)return; const lab=(k==='*'||k==='*R'||k==='JS')?'✱':(c.label||k); items.push('<span style="display:inline-block;width:12px;height:12px;background:'+c.bg+';border:1px solid #999;vertical-align:middle;margin-right:3px"></span>'+lab); });
   return '<div class="pz-legend" style="margin-top:8px;font-size:10px;line-height:2"><b>Codes : </b>'+items.join(' &nbsp;&nbsp; ')+'</div>';
 }
 function doPrint(){
@@ -2071,7 +2071,7 @@ async function doExcelExport(){
       ws.addRow([]);
       // Légende HORIZONTALE (sur une ligne) : pastille couleur + libellé, répétés
       const legItems=[['FFFF6B35','Jour férié']];
-      Object.keys(CODES).forEach(k=>{ if(k===''||k==='N')return; const c=CODES[k]; const lab=(k==='*'||k==='*R'||k==='JS')?'étoile':(c.noText?'(couleur)':(c.label||k)); legItems.push([toA(c.bg),lab]); });
+      Object.keys(CODES).forEach(k=>{ if(k===''||k==='N')return; const c=CODES[k]; if(c.noText)return; const lab=(k==='*'||k==='*R'||k==='JS')?'étoile':(c.label||k); legItems.push([toA(c.bg),lab]); });
       const legRow=ws.addRow([]); legRow.height=18; const rn=legRow.number; let lcol=1;
       const lc=legRow.getCell(lcol); lc.value='Codes :'; lc.font={bold:true,size:10,name:'Arial'}; lc.alignment={horizontal:'right',vertical:'middle'}; lcol++;
       legItems.forEach(([argb,txt])=>{
