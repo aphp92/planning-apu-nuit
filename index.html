@@ -1248,13 +1248,18 @@ function togglePmRow(n){
   document.getElementById(`pm${n}y`).disabled=!en;
   if(n===2){const c3=document.getElementById('pm3chk');c3.disabled=!en;if(!en){c3.checked=false;togglePmRow(3);}}
 }
+function legendHTML(){
+  const items=['<span style="display:inline-block;width:12px;height:12px;background:#FF6B35;border:1px solid #999;vertical-align:middle;margin-right:3px"></span>Jour férié'];
+  Object.keys(CODES).forEach(k=>{ if(k===''||k==='N')return; const c=CODES[k]; const lab=(k==='*'||k==='*R'||k==='JS')?'✱':(c.noText?'(couleur)':(k+(c.label&&c.label!==k?(' — '+c.label):''))); items.push('<span style="display:inline-block;width:12px;height:12px;background:'+c.bg+';border:1px solid #999;vertical-align:middle;margin-right:3px"></span>'+lab); });
+  return '<div class="pz-legend" style="margin-top:8px;font-size:10px;line-height:2"><b>Codes : </b>'+items.join(' &nbsp;&nbsp; ')+'</div>';
+}
 function doPrint(){
   const months=[];
   months.push({m:parseInt(document.getElementById('pm1m').value),y:parseInt(document.getElementById('pm1y').value)});
   if(document.getElementById('pm2chk').checked)months.push({m:parseInt(document.getElementById('pm2m').value),y:parseInt(document.getElementById('pm2y').value)});
   if(document.getElementById('pm3chk').checked)months.push({m:parseInt(document.getElementById('pm3m').value),y:parseInt(document.getElementById('pm3y').value)});
   const pz=document.getElementById('printZone');
-  pz.innerHTML='<div class="pz-wrap">'+months.map(({m,y})=>`<div class="pz-month"><div class="pz-title">${MONTHS[m]} ${y}</div>${buildPrintMonth(y,m)}</div>`).join('')+'</div>';
+  pz.innerHTML='<div class="pz-wrap">'+months.map(({m,y})=>`<div class="pz-month"><div class="pz-title">${MONTHS[m]} ${y}</div>${buildPrintMonth(y,m)}</div>`).join('')+legendHTML()+'</div>';
   closePrintModal();
   setTimeout(()=>window.print(),80);
 }
@@ -1283,7 +1288,7 @@ function doTramePrint(){
     });
     html+='</tbody></table></div>';
   }
-  html+='</div>';
+  html+=legendHTML()+'</div>';
   document.getElementById('printZone').innerHTML=html;
   setTimeout(()=>window.print(),80);
 }
@@ -2004,6 +2009,16 @@ async function doExcelExport(){
     // Largeurs de colonnes (une seule fois pour toute la feuille)
     ws.getColumn(1).width=14;
     for(let c=2;c<=maxCols;c++) ws.getColumn(c).width=4.6;
+
+    // Légende des codes (à jour, en bas de la feuille)
+    (function(){
+      const toA=(h)=>{h=(h||'').replace('#','');if(h.length===3)h=h.split('').map(x=>x+x).join('');return 'FF'+h.toUpperCase();};
+      ws.addRow([]);
+      const t=ws.addRow(['Légende des codes :']); t.getCell(1).font={bold:true,size:11,name:'Arial'};
+      const addLeg=(argb,txt)=>{ const r=ws.addRow(['',txt]); const s=r.getCell(1); s.fill={type:'pattern',pattern:'solid',fgColor:{argb:argb}}; s.border={top:{style:'thin'},bottom:{style:'thin'},left:{style:'thin'},right:{style:'thin'}}; r.getCell(2).font={size:10,name:'Arial'}; r.getCell(2).alignment={horizontal:'left'}; };
+      addLeg('FFFF6B35','Jour férié');
+      Object.keys(CODES).forEach(k=>{ if(k===''||k==='N')return; const c=CODES[k]; const lab=(k==='*'||k==='*R'||k==='JS')?'✱':(c.noText?'(couleur)':(k+(c.label&&c.label!==k?(' — '+c.label):''))); addLeg(toA(c.bg), lab); });
+    })();
 
     // Generate and download
     const buf=await wb.xlsx.writeBuffer();
