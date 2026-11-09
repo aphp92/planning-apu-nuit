@@ -247,8 +247,6 @@ body.readonly [onclick*="undoLast"],body.readonly [onclick*="openWeModal"]{displ
     <button class="login-btn" onclick="doLogin()">Entrer <span class="arr">&#8594;</span></button>
     <div class="login-tag">Une équipe, un service, chaque jour<span class="tag-bar"></span></div>
     <div class="login-links">
-      <a href="#" onclick="doSignup();return false;">Créer un compte</a>
-      <span class="sep">·</span>
       <a href="#" onclick="doReset();return false;">Mot de passe oublié ?</a>
     </div>
   </div>
@@ -536,8 +534,22 @@ body.readonly [onclick*="undoLast"],body.readonly [onclick*="openWeModal"]{displ
       <h2 style="color:#005BAA;font-size:19px">👑 Administration</h2><div style="flex:1"></div>
       <button class="nb gray" onclick="closeAdmin()">✕ Fermer</button>
     </div>
-    <h3 style="font-size:14px;margin:8px 0 6px;color:#0f2744">Utilisateurs &amp; droits</h3>
-    <div style="font-size:11.5px;color:#777;margin-bottom:6px">Les comptes se créent eux-mêmes (inscription). Ici tu attribues les droits : lecture seule / lecture-écriture / administrateur.</div>
+    <h3 style="font-size:14px;margin:8px 0 6px;color:#0f2744">Inviter une personne</h3>
+    <div style="font-size:11.5px;color:#777;margin-bottom:6px">Personne ne peut s'inscrire seul. Saisis l'e-mail de la personne et ses droits : elle recevra un <b>e-mail</b> pour définir son mot de passe, puis pourra se connecter.</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12.5px;margin-bottom:6px">
+      <input id="invEmail" type="email" placeholder="adresse e-mail de la personne" style="flex:1;min-width:200px;padding:6px 8px;border:1px solid #ccd3da;border-radius:7px">
+      <label style="display:flex;align-items:center;gap:4px">Droits
+        <select id="invRole" style="padding:5px;border-radius:6px">
+          <option value="read">Lecture seule</option>
+          <option value="write">Lecture / écriture</option>
+          <option value="admin">Administrateur</option>
+        </select>
+      </label>
+      <button class="nb" style="background:#005BAA" onclick="inviteUser()">✉️ Inviter</button>
+    </div>
+    <div id="invMsg" style="font-size:12.5px;margin-bottom:10px;color:#1a7a40"></div>
+    <h3 style="font-size:14px;margin:14px 0 6px;color:#0f2744">Utilisateurs &amp; droits</h3>
+    <div style="font-size:11.5px;color:#777;margin-bottom:6px">Modifie les droits ou supprime un accès.</div>
     <div id="adminUsers" style="font-size:13px">Chargement…</div>
     <h3 style="font-size:14px;margin:18px 0 6px;color:#0f2744">Boutons (codes) — ajouter / modifier / supprimer</h3>
     <div style="font-size:11.5px;color:#777;margin-bottom:6px">✎ = modifier (même les boutons d'origine) · ✕ = supprimer. Pour en créer un : choisis une couleur et « ➕ Ajouter ». <b>Code et libellé facultatifs</b> : laisse-les vides pour une simple case colorée (ex. case rouge). Tout est partagé avec l'équipe.</div>
@@ -1592,7 +1604,7 @@ function authErr(m){const e=document.getElementById('loginErr');if(e)e.textConte
 function authOk(m){const o=document.getElementById('loginOk');if(o)o.textContent=m;const e=document.getElementById('loginErr');if(e)e.textContent='';}
 function fbMsg(c){const m={'auth/invalid-email':"Adresse e-mail invalide.",'auth/missing-password':"Entre ton mot de passe.",'auth/weak-password':"Mot de passe trop court (6 caractères min).",'auth/email-already-in-use':"Un compte existe déjà avec cet e-mail.",'auth/invalid-credential':"E-mail ou mot de passe incorrect.",'auth/wrong-password':"Mot de passe incorrect.",'auth/user-not-found':"Aucun compte avec cet e-mail.",'auth/network-request-failed':"Problème de connexion internet.",'auth/too-many-requests':"Trop de tentatives, réessaie plus tard."};return m[c]||("Erreur : "+c);}
 function doLogin(){const email=(document.getElementById('loginEmail').value||'').trim();const pw=document.getElementById('loginPw').value||'';if(!email){authErr("Entre ton adresse e-mail.");return;}authOk('Connexion…');fbAuth.signInWithEmailAndPassword(email,pw).catch(e=>authErr(fbMsg(e.code)));}
-function doSignup(){const email=(document.getElementById('loginEmail').value||'').trim();const pw=document.getElementById('loginPw').value||'';if(!email){authErr("Entre ton adresse e-mail.");return;}if(pw.length<6){authErr("Choisis un mot de passe d'au moins 6 caractères.");return;}authOk('Création du compte…');fbAuth.createUserWithEmailAndPassword(email,pw).catch(e=>authErr(fbMsg(e.code)));}
+function doSignup(){ authErr("L'inscription libre est désactivée. Demande à l'administrateur de te créer un accès."); }
 function doReset(){const email=(document.getElementById('loginEmail').value||'').trim();if(!email){authErr("Entre ton e-mail pour recevoir le lien.");return;}fbAuth.sendPasswordResetEmail(email).then(()=>authOk("E-mail de réinitialisation envoyé (vérifie les spams).")).catch(e=>authErr(fbMsg(e.code)));}
 function doLogout(){ if(confirm('Se déconnecter ?')) fbAuth.signOut(); }
 function togglePw(){const i=document.getElementById('loginPw');if(i)i.type=(i.type==='password'?'text':'password');}
@@ -1661,6 +1673,41 @@ function editCustomCode(key){
   try{(info.noText?document.getElementById('ncBg'):document.getElementById('ncLabel')).focus();}catch(e){}
 }
 function closeAdmin(){ document.getElementById('adminModal').style.display='none'; }
+async function inviteUser(){
+  const msg=document.getElementById('invMsg');
+  const email=(document.getElementById('invEmail').value||'').trim().toLowerCase();
+  const role=document.getElementById('invRole').value||'read';
+  if(!email||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ msg.style.color='#b00020'; msg.textContent='❌ Saisis une adresse e-mail valide.'; return; }
+  msg.style.color='#555'; msg.textContent='Création en cours…';
+  // App Firebase "secondaire" : crée le compte sans déconnecter l'admin.
+  let secondary;
+  try{
+    secondary = firebase.apps.find(a=>a.name==='invite') || firebase.initializeApp(firebaseConfig,'invite');
+    const rndPw = 'Ap!'+Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2).toUpperCase();
+    let uid;
+    try{
+      const cred = await secondary.auth().createUserWithEmailAndPassword(email, rndPw);
+      uid = cred.user.uid;
+    }catch(e){
+      if(e.code==='auth/email-already-in-use'){ msg.style.color='#b00020'; msg.textContent="❌ Cette personne a déjà un compte. Change plutôt ses droits dans la liste ci-dessous, ou supprime-le d'abord."; try{await secondary.delete();}catch(_){} return; }
+      throw e;
+    }
+    // L'admin (app principale) crée la fiche de droits.
+    await fbDB.collection('users').doc(uid).set({email,role,createdAt:firebase.firestore.FieldValue.serverTimestamp(),invitedBy:(currentUser&&currentUser.email)||''});
+    // E-mail pour que la personne définisse son mot de passe.
+    await fbAuth.sendPasswordResetEmail(email);
+    await secondary.auth().signOut();
+    try{ await secondary.delete(); }catch(_){}
+    logEvent('invite','Invitation : '+email+' ('+role+')');
+    msg.style.color='#1a7a40';
+    msg.innerHTML='✅ Invitation envoyée à <b>'+email+'</b>. La personne reçoit un e-mail pour choisir son mot de passe (pensez aux spams).';
+    document.getElementById('invEmail').value='';
+    renderAdminUsers();
+  }catch(e){
+    try{ if(secondary) await secondary.delete(); }catch(_){}
+    msg.style.color='#b00020'; msg.textContent='❌ Échec : '+(e.message||e.code||e);
+  }
+}
 async function renderAdminUsers(){
   const el=document.getElementById('adminUsers'); el.textContent='Chargement…';
   try{
@@ -1712,13 +1759,19 @@ async function doImportJsonbin(){
 async function loadRole(user){
   const ref=fbDB.collection('users').doc(user.uid);
   let snap;
-  try{ snap=await ref.get(); }catch(e){ currentRole='read'; return currentRole; }
+  try{ snap=await ref.get(); }catch(e){ currentRole=null; return currentRole; }
   if(!snap.exists){
-    const role=(user.email===ADMIN_EMAIL)?'admin':'read';
-    try{ await ref.set({email:user.email,role,createdAt:firebase.firestore.FieldValue.serverTimestamp()}); }catch(e){}
-    try{ snap=await ref.get(); }catch(e){}
+    // Bootstrap unique : seul l'administrateur peut se créer lui-même. Toute autre personne
+    // doit avoir été invitée par l'admin (fiche créée) → sinon aucun accès.
+    if(user.email===ADMIN_EMAIL){
+      try{ await ref.set({email:user.email,role:'admin',createdAt:firebase.firestore.FieldValue.serverTimestamp()}); }catch(e){}
+      try{ snap=await ref.get(); }catch(e){}
+    }else{
+      currentRole='unauthorized';
+      return currentRole;
+    }
   }
-  currentRole=(((snap&&snap.data())||{}).role)||'read';
+  currentRole=(((snap&&snap.data())||{}).role)||'unauthorized';
   return currentRole;
 }
 function canWrite(){ return currentRole==='write' || currentRole==='admin'; }
@@ -1742,6 +1795,7 @@ fbAuth.onAuthStateChanged(async (user)=>{
     currentUser=user;
     await loadRole(user);
     if(currentRole==='blocked'){ document.getElementById('loginGate').classList.remove('hidden'); alert("Votre accès a été retiré par un administrateur."); fbAuth.signOut(); return; }
+    if(currentRole==='unauthorized'||!currentRole){ if(gate)gate.classList.remove('hidden'); alert("Ce compte n'a pas d'accès autorisé.\n\nContactez l'administrateur pour qu'il vous crée un accès."); fbAuth.signOut(); return; }
     applyRoleUI();
     logEvent('login','Connexion');
     try{ await doLoad(); }catch(e){}
