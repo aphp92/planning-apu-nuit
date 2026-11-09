@@ -1635,10 +1635,11 @@ async function deleteCode(key){
   if(!confirm('Supprimer le bouton « '+key+' » ?')) return;
   try{
     const snap=await DATA_DOC.get(); const d=(snap.exists&&snap.data())||{};
-    const cc=d.customCodes||{}; let hidden=Array.isArray(d.hiddenCodes)?d.hiddenCodes:[];
-    if(cc[key]) delete cc[key];
+    let hidden=Array.isArray(d.hiddenCodes)?d.hiddenCodes.slice():[];
     if(BUILTIN_CODES[key] && !hidden.includes(key)) hidden.push(key);
-    await DATA_DOC.set({customCodes:cc,hiddenCodes:hidden},{merge:true});
+    const upd={ hiddenCodes: hidden, _updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+    if(d.customCodes && d.customCodes[key]!==undefined){ upd['customCodes.'+key]=firebase.firestore.FieldValue.delete(); }  // vraie suppression de la clé
+    await DATA_DOC.update(upd);
     delete CODES[key];
     logEvent('code','Bouton supprimé : '+key);
     render(); renderStats(); renderAnnuel(); if(trameUnlocked)renderTrame(); renderCustomCodesList();
