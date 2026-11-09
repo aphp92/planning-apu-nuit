@@ -308,11 +308,7 @@ body.readonly [onclick*="undoLast"],body.readonly [onclick*="openWeModal"]{displ
     <span class="lc" style="background:#92D050"></span> Vert&nbsp;
     <span class="lc" style="background:#FFFF00"></span> Jaune &nbsp;|&nbsp;
     <b>Codes :</b>
-    <span class="lc" style="background:#FF6B35"></span> <b>J.Férié</b> &nbsp;
-    <span class="lc" style="background:#FF4D4D"></span> CA &nbsp;
-    <span class="lc" style="background:#c6efce"></span> RH &nbsp;
-    <span class="lc" style="background:#fff"></span> ✱ &nbsp;<span class="lc" style="background:#FF4D4D"></span> ✱ &nbsp;
-    <span class="lc" style="background:#0d47a1"></span> Changement &nbsp;<span class="lc" style="background:#E1BEE7"></span> FO &nbsp;<span class="lc" style="background:#BBDEFB"></span> bleu &nbsp;<span class="lc" style="background:#BBDEFB"></span> N
+    <span class="lc" style="background:#FF6B35"></span> <b>J.Férié</b> &nbsp;<span id="legendCodes"></span>
   </div>
   <div id="planningTitle" class="noprint" style="font-size:21px;font-weight:bold;color:#fff;background:#155E8E;text-align:center;padding:6px 10px;border-radius:5px;margin:4px 0 10px;letter-spacing:1.5px"></div>
   <div id="printZone" style="display:none"></div>
@@ -1106,7 +1102,13 @@ function buildTable(y,mo,getFn,clickFnStr){
 }
 
 // ---- Planning ----
+function renderLegend(){
+  const el=document.getElementById('legendCodes'); if(!el)return;
+  const keys=Object.keys(CODES).filter(k=>k!==''&&k!=='N');
+  el.innerHTML=keys.map(k=>{const c=CODES[k];const lab=(k==='*'||k==='*R'||k==='JS')?'✱':(c.noText?'':(c.label||k));return '<span class="lc" style="background:'+c.bg+'"></span> '+lab+' &nbsp;';}).join('');
+}
 function render(){
+  renderLegend();
   curY=parseInt(document.getElementById('yearSel').value);
   curMo=parseInt(document.getElementById('monthSel').value);
   document.getElementById('planningContainer').innerHTML=buildTable(curY,curMo,gc,'openCell');
