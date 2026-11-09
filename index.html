@@ -1684,24 +1684,25 @@ async function inviteUser(){
   let secondary;
   try{
     secondary = firebase.apps.find(a=>a.name==='invite') || firebase.initializeApp(firebaseConfig,'invite');
-    const rndPw = 'Ap!'+Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2).toUpperCase();
+    // Mot de passe temporaire LISIBLE, à communiquer directement à la personne.
+    const tmpPw = 'APU-'+Math.floor(100000+Math.random()*900000);
     let uid;
     try{
-      const cred = await secondary.auth().createUserWithEmailAndPassword(email, rndPw);
+      const cred = await secondary.auth().createUserWithEmailAndPassword(email, tmpPw);
       uid = cred.user.uid;
     }catch(e){
-      if(e.code==='auth/email-already-in-use'){ msg.style.color='#b00020'; msg.textContent="❌ Cette personne a déjà un compte. Change plutôt ses droits dans la liste ci-dessous, ou supprime-le d'abord."; try{await secondary.delete();}catch(_){} return; }
+      if(e.code==='auth/email-already-in-use'){ msg.style.color='#b00020'; msg.textContent="❌ Cette personne a déjà un compte. Pour lui redonner un accès : supprime d'abord son compte (ici + dans Firebase → Authentication), puis réinvite-la."; try{await secondary.delete();}catch(_){} return; }
       throw e;
     }
     // L'admin (app principale) crée la fiche de droits.
     await fbDB.collection('users').doc(uid).set({email,role,createdAt:firebase.firestore.FieldValue.serverTimestamp(),invitedBy:(currentUser&&currentUser.email)||''});
-    // E-mail pour que la personne définisse son mot de passe.
-    await fbAuth.sendPasswordResetEmail(email);
-    await secondary.auth().signOut();
+    // E-mail en bonus (souvent filtré, ex. free.fr) — ne bloque pas si échec.
+    let mailOk=false; try{ await fbAuth.sendPasswordResetEmail(email); mailOk=true; }catch(_){}
+    try{ await secondary.auth().signOut(); }catch(_){}
     try{ await secondary.delete(); }catch(_){}
     logEvent('invite','Invitation : '+email+' ('+role+')');
     msg.style.color='#1a7a40';
-    msg.innerHTML='✅ Invitation envoyée à <b>'+email+'</b>. La personne reçoit un e-mail pour choisir son mot de passe (pensez aux spams).';
+    msg.innerHTML='✅ Compte créé pour <b>'+email+'</b>.<br>Mot de passe temporaire à lui communiquer (par tél/SMS) :<br><b style="font-size:17px;background:#fff3cd;padding:3px 10px;border-radius:6px;border:1px solid #e0c000;display:inline-block;margin:4px 0">'+tmpPw+'</b><br><span style="color:#555;font-size:12px">Elle se connecte avec son e-mail + ce mot de passe.'+(mailOk?' (Un e-mail a aussi été envoyé, mais souvent filtré par free.fr.)':'')+'</span>';
     document.getElementById('invEmail').value='';
     renderAdminUsers();
   }catch(e){
