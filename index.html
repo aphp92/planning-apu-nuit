@@ -1821,6 +1821,8 @@ fbAuth.onAuthStateChanged(async (user)=>{
     openAfterLogin();
   }else{
     currentUser=null;currentRole=null;
+    // À la déconnexion, on oublie la dernière page pour revenir à l'écran de choix à la reconnexion.
+    try{sessionStorage.removeItem('apu_mode');}catch(e){}
     document.body.classList.remove('readonly');
     if(gate)gate.classList.remove('hidden');
   }
