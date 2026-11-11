@@ -1325,16 +1325,6 @@ function renderStats(){
   h+='<tr class="tr"><td><b>TOTAL</b></td>';
   for(let mo=0;mo<12;mo++){let c=0;agents.forEach(ag=>{const dim=new Date(year,mo+1,0).getDate();for(let d=1;d<=dim;d++)if(gc(year,mo,ag,d)==='N')c++;});h+=`<td><b>${c||''}</b></td>`;}
   h+='<td></td><td></td><td></td></tr></tbody></table></div>';
-  h+='<h3 style="margin:14px 0 5px;color:#155E8E">Congés annuels (CA) par mois</h3>';
-  h+='<div style="overflow-x:auto"><table class="st"><thead><tr><th>Agent</th>';
-  MONTHS.forEach(m=>h+=`<th>${m.substring(0,3)}</th>`);
-  h+='<th>Total CA</th></tr></thead><tbody>';
-  agents.forEach(ag=>{
-    let tot=0;h+=`<tr><td>${ag}</td>`;
-    for(let mo=0;mo<12;mo++){const dim=new Date(year,mo+1,0).getDate();let c=0;for(let d=1;d<=dim;d++)if(gc(year,mo,ag,d)==='CA')c++;h+=`<td>${c||''}</td>`;tot+=c;}
-    h+=`<td class="tr">${tot}</td></tr>`;
-  });
-  h+='</tbody></table></div>';
   document.getElementById('statsContainer').innerHTML=h;
 }
 
