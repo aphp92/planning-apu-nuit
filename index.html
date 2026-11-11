@@ -563,7 +563,9 @@ body.readonly [onclick*="undoLast"],body.readonly [onclick*="openWeModal"]{displ
     </div>
     <div id="ncMsg" style="font-size:12.5px;margin-top:5px;color:#1a7a40"></div>
     <h3 style="font-size:14px;margin:18px 0 6px;color:#0f2744">Données</h3>
-    <button class="nb" style="background:#1a7a40" onclick="doImportJsonbin()">⬇ Importer l'ancien planning (JSONBin → Firebase)</button>
+    <button class="nb" style="background:#155E8E" onclick="exportFirebaseBackup()">💾 Sauvegarder la base (télécharger JSON)</button>
+    <button class="nb" style="background:#1a7a40;margin-left:8px" onclick="doImportJsonbin()">⬇ Importer l'ancien planning (JSONBin → Firebase)</button>
+    <div id="adminBackupMsg" style="font-size:12.5px;margin-top:6px;color:#155E8E"></div>
     <div id="adminImportMsg" style="font-size:12.5px;margin-top:6px;color:#555"></div>
     <h3 style="font-size:14px;margin:18px 0 6px;color:#0f2744">Journal — connexions &amp; modifications <span style="font-weight:normal;color:#888;font-size:11px">(effacé automatiquement après 90 jours)</span></h3>
     <div id="adminLogs" style="font-size:12px;max-height:240px;overflow:auto;border:1px solid #eee;border-radius:8px;padding:8px;line-height:1.5">—</div>
@@ -1752,6 +1754,24 @@ async function renderAdminLogs(){
     snap.forEach(d=>{const l=d.data();const t=(l.at&&l.at.toDate)?l.at.toDate().toLocaleString('fr-FR'):'';h+='<div><span style="color:#888">'+t+'</span> — <b>'+(l.email||'?')+'</b> — '+(l.type||'')+(l.detail?' : '+l.detail:'')+'</div>';});
     el.innerHTML=h;
   }catch(e){ el.textContent='Erreur: '+e.message; }
+}
+async function exportFirebaseBackup(){
+  const msg=document.getElementById('adminBackupMsg'); if(msg){msg.style.color='#155E8E';msg.textContent='Sauvegarde en cours…';}
+  try{
+    const ts=(v)=>{ try{ if(v&&typeof v==='object'&&typeof v.toDate==='function') return {__ts:v.toDate().toISOString()}; }catch(_){} return v; };
+    const out={ _exportedAt:new Date().toISOString(), _by:(currentUser&&currentUser.email)||'', app:{}, users:[], logs:[] };
+    const appSnap=await fbDB.collection('app').get(); appSnap.forEach(d=>{ out.app[d.id]=d.data(); });
+    const uSnap=await fbDB.collection('users').get(); out.users=uSnap.docs.map(d=>Object.assign({id:d.id},d.data()));
+    const lSnap=await fbDB.collection('logs').get(); out.logs=lSnap.docs.map(d=>Object.assign({id:d.id},d.data()));
+    const json=JSON.stringify(out,(k,v)=>ts(v),2);
+    const blob=new Blob([json],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const p=n=>String(n).padStart(2,'0'); const dt=new Date();
+    const name='firebase_backup_'+dt.getFullYear()+p(dt.getMonth()+1)+p(dt.getDate())+'-'+p(dt.getHours())+p(dt.getMinutes())+p(dt.getSeconds())+'.json';
+    const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),3000);
+    try{ logEvent('backup','Sauvegarde base Firebase téléchargée'); }catch(_){}
+    if(msg){ msg.style.color='#1a7a40'; msg.innerHTML='✅ Base téléchargée : <b>'+name+'</b> (à ranger dans sauvegardes\\).'; }
+  }catch(e){ if(msg){msg.style.color='#b00020';msg.textContent='❌ Impossible : '+(e.message||e.code||e);} }
 }
 async function doImportJsonbin(){
   if(!confirm("Importer le planning actuel (ancien site JSONBin) dans Firebase ?\n\n• L'ancien site et sa base ne sont PAS modifiés (lecture seule).\n• Les données Firebase seront remplacées par cette copie.")) return;
